@@ -80,6 +80,26 @@ class DeviceProcessor:
         }
         self.total_devices = 0
         self.processed_devices = 0
+        logger.info("DeviceProcessor initialized successfully")
+        
+        # Ensure cleanup method is properly bound
+        self._cleanup_resources = self._create_cleanup_method()
+    
+    def _create_cleanup_method(self):
+        """Create a robust cleanup method"""
+        def cleanup():
+            try:
+                if hasattr(self, 'browser') and self.browser:
+                    logger.info("Closing browser...")
+                    self.browser.close()
+                    logger.info("Browser closed")
+                if hasattr(self, 'playwright') and self.playwright:
+                    logger.info("Stopping playwright...")
+                    self.playwright.stop()
+                    logger.info("Playwright stopped")
+            except Exception as e:
+                logger.error(f"Error in cleanup: {e}")
+        return cleanup
     
     def emit_progress(self, message, progress=None):
         """Emit progress updates to the frontend"""
@@ -728,25 +748,43 @@ class DeviceProcessor:
     def start_browser(self):
         """Start browser and login"""
         try:
+            logger.info("Starting Playwright...")
             self.playwright = sync_playwright().start()
+            logger.info("Launching browser...")
             self.browser = self.playwright.chromium.launch(headless=False, devtools=False)
+            logger.info("Creating new page...")
             self.page = self.browser.new_page()
             
+            logger.info("Attempting ERP login...")
             return self.login_erp()
             
         except Exception as e:
             logger.error(f"Browser startup failed: {e}")
+            # Clean up any partially initialized resources
+            try:
+                if hasattr(self, 'browser') and self.browser:
+                    self.browser.close()
+                if hasattr(self, 'playwright') and self.playwright:
+                    self.playwright.stop()
+            except Exception as cleanup_e:
+                logger.error(f"Error during startup cleanup: {cleanup_e}")
             return False
     
     def close_browser(self):
         """Close browser and cleanup"""
+        logger.info("close_browser method called")
         try:
-            if self.browser:
+            if hasattr(self, 'browser') and self.browser:
+                logger.info("Closing browser...")
                 self.browser.close()
-            if self.playwright:
+                logger.info("Browser closed")
+            if hasattr(self, 'playwright') and self.playwright:
+                logger.info("Stopping playwright...")
                 self.playwright.stop()
+                logger.info("Playwright stopped")
         except Exception as e:
             logger.error(f"Error closing browser: {e}")
+        logger.info("close_browser method completed")
     
     def process_excel_file(self, excel_path):
         """Process the uploaded Excel file"""
@@ -865,20 +903,63 @@ def upload_file():
         
         def process_in_background():
             global is_processing, current_processor
+            current_processor = None
             try:
+                logger.info("Starting background processing...")
                 current_processor = DeviceProcessor(username, password)
+                logger.info("DeviceProcessor created, starting browser...")
+                
                 if current_processor.start_browser():
+                    logger.info("Browser started successfully, processing file...")
                     current_processor.process_excel_file(upload_path)
                 else:
+                    logger.error("Failed to start browser or login")
                     socketio.emit('processing_error', {'error': 'Failed to start browser or login'}, namespace='/')
+                    
             except Exception as e:
                 logger.error(f"Background processing error: {e}")
+                logger.error(f"Error type: {type(e).__name__}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
                 socketio.emit('processing_error', {'error': str(e)}, namespace='/')
             finally:
-                if current_processor:
-                    current_processor.close_browser()
+                logger.info("Cleaning up...")
+                                 try:
+                    if current_processor:
+                        # Try the standard close_browser method first
+                        if hasattr(current_processor, 'close_browser') and callable(getattr(current_processor, 'close_browser')):
+                            try:
+                                logger.info("Using close_browser method...")
+                                current_processor.close_browser()
+                                logger.info("Browser closed successfully via close_browser")
+                            except Exception as cleanup_error:
+                                logger.error(f"Error during close_browser cleanup: {cleanup_error}")
+                                # Fall back to alternative cleanup
+                                if hasattr(current_processor, '_cleanup_resources'):
+                                    logger.info("Trying alternative cleanup method...")
+                                    current_processor._cleanup_resources()
+                        elif hasattr(current_processor, '_cleanup_resources'):
+                            logger.info("Using alternative cleanup method...")
+                            current_processor._cleanup_resources()
+                        else:
+                            logger.warning("No cleanup methods found, attempting manual cleanup")
+                            # Try manual cleanup
+                            try:
+                                if hasattr(current_processor, 'browser') and current_processor.browser:
+                                    current_processor.browser.close()
+                                if hasattr(current_processor, 'playwright') and current_processor.playwright:
+                                    current_processor.playwright.stop()
+                                logger.info("Manual cleanup completed")
+                            except Exception as manual_cleanup_error:
+                                logger.error(f"Error during manual cleanup: {manual_cleanup_error}")
+                    else:
+                        logger.info("No current_processor to clean up")
+                except Exception as general_cleanup_error:
+                    logger.error(f"General cleanup error: {general_cleanup_error}")
+                        
                 is_processing = False
                 current_processor = None
+                logger.info("Background processing cleanup completed")
         
         thread = threading.Thread(target=process_in_background)
         thread.daemon = True

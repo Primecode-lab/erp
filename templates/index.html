@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERP Device Processor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #f1f5f9;
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --accent-color: #5D5CDE;
+            --accent-hover: #4c4bc9;
+            --success-color: #10b981;
+            --error-color: #ef4444;
+            --warning-color: #f59e0b;
+            --info-color: #3b82f6;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.4);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            transition: all 0.3s ease;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent-color);
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .theme-toggle {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .theme-toggle:hover {
+            background: var(--accent-color);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 2rem;
+            padding: 2rem 0;
+            min-height: calc(100vh - 100px);
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.2s ease;
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: var(--radius-md);
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            justify-content: center;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+        }
+
+        .btn-primary {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: var(--border-color);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--error-color);
+            color: white;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgb(93 92 222 / 0.1);
+        }
+
+        .file-upload {
+            border: 2px dashed var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .file-upload:hover {
+            border-color: var(--accent-color);
+            background: var(--bg-tertiary);
+        }
+
+        .file-upload.dragover {
+            border-color: var(--accent-color);
+            background: var(--bg-tertiary);
+            transform: scale(1.02);
+        }
+
+        .file-upload-input {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .file-upload-content {
+            pointer-events: none;
+        }
+
+        .file-upload-icon {
+            font-size: 3rem;
+            color: var(--accent-color);
+            margin-bottom: 1rem;
+        }
+
+        .progress-container {
+            margin: 1rem 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-color), var(--info-color));
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .logs-container {
+            max-height: 500px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .log-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.875rem;
+            position: relative;
+            transition: all 0.2s ease;
+            border-left: 4px solid var(--info-color);
+        }
+
+        .log-card:hover {
+            transform: translateX(4px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .log-card.info { border-left-color: var(--info-color); }
+        .log-card.warning { border-left-color: var(--warning-color); }
+        .log-card.error { border-left-color: var(--error-color); }
+        .log-card.success { border-left-color: var(--success-color); }
+
+        .log-timestamp {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .log-message {
+            color: var(--text-primary);
+            line-height: 1.4;
+        }
+
+        .file-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1rem;
+        }
+
+        .file-item {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            padding: 1rem;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+
+        .file-item:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--accent-color);
+        }
+
+        .file-icon {
+            font-size: 2rem;
+            color: var(--accent-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .file-name {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            color: var(--text-primary);
+            word-break: break-all;
+        }
+
+        .file-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+        }
+
+        .file-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .file-actions .btn {
+            padding: 6px 12px;
+            font-size: 0.75rem;
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-online {
+            background: rgb(16 185 129 / 0.1);
+            color: var(--success-color);
+        }
+
+        .status-processing {
+            background: rgb(59 130 246 / 0.1);
+            color: var(--info-color);
+        }
+
+        .status-offline {
+            background: rgb(239 68 68 / 0.1);
+            color: var(--error-color);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border-radius: var(--radius-lg);
+            padding: 2rem;
+            max-width: 400px;
+            width: 90vw;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .modal-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .modal-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 1rem;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            z-index: 1100;
+            max-width: 400px;
+            transition: all 0.3s ease;
+        }
+
+        .notification.success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .notification.error {
+            background: var(--error-color);
+            color: white;
+        }
+
+        .notification.warning {
+            background: var(--warning-color);
+            color: white;
+        }
+
+        .notification.info {
+            background: var(--info-color);
+            color: white;
+        }
+
+        @media (max-width: 1024px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+            
+            .sidebar {
+                order: -1;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 16px;
+            }
+            
+            .header-content {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .file-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .card {
+                padding: 1rem;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-color);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .processing-indicator {
+            background: var(--warning-color);
+            color: white;
+            padding: 8px 16px;
+            border-radius: var(--radius-md);
+            margin: 1rem 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <header class="header">
+            <div class="container">
+                <div class="header-content">
+                    <div class="logo">
+                        <i class="fas fa-microchip"></i>
+                        ERP Device Processor
+                    </div>
+                    <div class="header-actions">
+                        <button class="theme-toggle" id="themeToggle">
+                            <i class="fas fa-moon"></i>
+                            <span>Dark</span>
+                        </button>
+                        <div class="user-info hidden" id="userInfo">
+                            <i class="fas fa-user-circle"></i>
+                            <span id="currentUser">Not logged in</span>
+                            <button class="btn btn-secondary" id="logoutBtn">
+                                <i class="fas fa-sign-out-alt"></i>
+                                Logout
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="container">
+            <div class="main-layout">
+                <main class="main-content">
+                    <div class="card" id="uploadSection">
+                        <div class="card-header">
+                            <h2 class="card-title">
+                                <i class="fas fa-upload"></i>
+                                Upload Excel File
+                            </h2>
+                            <div class="status-indicator" id="connectionStatus">
+                                <i class="fas fa-circle"></i>
+                                <span>Connecting...</span>
+                            </div>
+                        </div>
+                        
+                        <div class="file-upload" id="fileUpload">
+                            <input type="file" class="file-upload-input" id="fileInput" accept=".xlsx,.xls">
+                            <div class="file-upload-content">
+                                <div class="file-upload-icon">
+                                    <i class="fas fa-cloud-upload-alt"></i>
+                                </div>
+                                <h3>Drop your Excel file here</h3>
+                                <p>or click to browse files</p>
+                                <small>Only .xlsx and .xls files are supported</small>
+                            </div>
+                        </div>
+
+                        <div class="progress-container hidden" id="progressContainer">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progressFill"></div>
+                            </div>
+                            <div class="progress-text" id="progressText">0% complete</div>
+                        </div>
+
+                        <div id="uploadStatus" class="hidden">
+                            <div class="form-group">
+                                <button class="btn btn-primary" id="uploadBtn" disabled>
+                                    <i class="fas fa-rocket"></i>
+                                    Start Processing
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="processingIndicator" class="processing-indicator hidden">
+                            <div class="spinner"></div>
+                            <span>Processing devices... Please wait and do not close this page.</span>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">
+                                <i class="fas fa-folder-open"></i>
+                                Output Files
+                            </h2>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button class="btn btn-secondary" id="refreshFilesBtn">
+                                    <i class="fas fa-sync-alt"></i>
+                                    Refresh
+                                </button>
+                                <button class="btn btn-success" id="downloadAllBtn">
+                                    <i class="fas fa-download"></i>
+                                    Download All
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="filesList">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">
+                                    <i class="fas fa-folder-open"></i>
+                                </div>
+                                <h3>No files yet</h3>
+                                <p>Upload and process an Excel file to see results here</p>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+
+                <aside class="sidebar">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="fas fa-chart-line"></i>
+                                Processing Status
+                            </h3>
+                        </div>
+                        <div id="processingStats">
+                            <div style="margin-bottom: 1rem;">
+                                <strong>Status:</strong> <span id="processingStatus">Idle</span>
+                            </div>
+                            <div style="margin-bottom: 1rem;">
+                                <strong>Devices:</strong> <span id="deviceCount">0 / 0</span>
+                            </div>
+                            <div class="hidden" id="resultsStats">
+                                <h4 style="margin-bottom: 0.5rem;">Results:</h4>
+                                <div style="font-size: 0.875rem; color: var(--text-secondary);">
+                                    <div>✅ Valid Paid: <span id="validPaidCount">0</span></div>
+                                    <div>⚠️ Valid Not Paid: <span id="validNotPaidCount">0</span></div>
+                                    <div>❌ Expired: <span id="expiredCount">0</span></div>
+                                    <div>📋 No Certificate: <span id="noCertCount">0</span></div>
+                                    <div>🔍 Not Found: <span id="notFoundCount">0</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="fas fa-key"></i>
+                                Credentials
+                            </h3>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Username</label>
+                            <input type="text" class="form-input" id="envUsername" placeholder="ERP Username">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Password</label>
+                            <input type="password" class="form-input" id="envPassword" placeholder="ERP Password">
+                        </div>
+                        <button class="btn btn-primary" id="updateCredsBtn">
+                            <i class="fas fa-save"></i>
+                            Update Credentials
+                        </button>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="fas fa-terminal"></i>
+                                Live Logs
+                            </h3>
+                            <button class="btn btn-secondary" id="clearLogsBtn">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                        <div class="logs-container" id="logsContainer">
+                            <div class="empty-state">
+                                <div class="empty-state-icon">
+                                    <i class="fas fa-terminal"></i>
+                                </div>
+                                <p>Logs will appear here</p>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="loginModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Login Required</h2>
+                <p class="modal-subtitle">Please enter your ERP credentials to continue</p>
+            </div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <input type="text" class="form-input" id="loginUsername" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-input" id="loginPassword" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Login
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        class ERPApp {
+            constructor() {
+                this.socket = null;
+                this.isLoggedIn = false;
+                this.isProcessing = false;
+                this.logs = [];
+                this.selectedFile = null;
+                this.notificationTimeout = null;
+                
+                this.initializeTheme();
+                this.initializeElements();
+                this.initializeSocket();
+                this.checkAuthStatus();
+                this.bindEvents();
+                this.loadCredentials();
+            }
+
+            initializeTheme() {
+                const savedTheme = localStorage.getItem('theme') || 'light';
+                document.documentElement.setAttribute('data-theme', savedTheme);
+                this.updateThemeButton(savedTheme);
+            }
+
+            updateThemeButton(theme) {
+                const toggle = document.getElementById('themeToggle');
+                const icon = toggle.querySelector('i');
+                const text = toggle.querySelector('span');
+                
+                if (theme === 'dark') {
+                    icon.className = 'fas fa-sun';
+                    text.textContent = 'Light';
+                } else {
+                    icon.className = 'fas fa-moon';
+                    text.textContent = 'Dark';
+                }
+            }
+
+            initializeElements() {
+                this.elements = {
+                    loginModal: document.getElementById('loginModal'),
+                    loginForm: document.getElementById('loginForm'),
+                    loginUsername: document.getElementById('loginUsername'),
+                    loginPassword: document.getElementById('loginPassword'),
+                    userInfo: document.getElementById('userInfo'),
+                    currentUser: document.getElementById('currentUser'),
+                    logoutBtn: document.getElementById('logoutBtn'),
+                    themeToggle: document.getElementById('themeToggle'),
+                    uploadSection: document.getElementById('uploadSection'),
+                    fileUpload: document.getElementById('fileUpload'),
+                    fileInput: document.getElementById('fileInput'),
+                    uploadBtn: document.getElementById('uploadBtn'),
+                    uploadStatus: document.getElementById('uploadStatus'),
+                    progressContainer: document.getElementById('progressContainer'),
+                    progressFill: document.getElementById('progressFill'),
+                    progressText: document.getElementById('progressText'),
+                    processingIndicator: document.getElementById('processingIndicator'),
+                    connectionStatus: document.getElementById('connectionStatus'),
+                    processingStatus: document.getElementById('processingStatus'),
+                    deviceCount: document.getElementById('deviceCount'),
+                    resultsStats: document.getElementById('resultsStats'),
+                    validPaidCount: document.getElementById('validPaidCount'),
+                    validNotPaidCount: document.getElementById('validNotPaidCount'),
+                    expiredCount: document.getElementById('expiredCount'),
+                    noCertCount: document.getElementById('noCertCount'),
+                    notFoundCount: document.getElementById('notFoundCount'),
+                    logsContainer: document.getElementById('logsContainer'),
+                    clearLogsBtn: document.getElementById('clearLogsBtn'),
+                    filesList: document.getElementById('filesList'),
+                    refreshFilesBtn: document.getElementById('refreshFilesBtn'),
+                    downloadAllBtn: document.getElementById('downloadAllBtn'),
+                    envUsername: document.getElementById('envUsername'),
+                    envPassword: document.getElementById('envPassword'),
+                    updateCredsBtn: document.getElementById('updateCredsBtn')
+                };
+            }
+
+            initializeSocket() {
+                this.socket = io();
+                
+                this.socket.on('connect', () => {
+                    this.updateConnectionStatus('online');
+                    this.addLog('Connected to server', 'success');
+                });
+
+                this.socket.on('disconnect', () => {
+                    this.updateConnectionStatus('offline');
+                    this.addLog('Disconnected from server', 'error');
+                });
+
+                this.socket.on('log_message', (data) => {
+                    this.addLog(data.message, 'info');
+                });
+
+                this.socket.on('processing_progress', (data) => {
+                    this.updateProgress(data.progress, data.message);
+                });
+
+                this.socket.on('processing_complete', (data) => {
+                    this.handleProcessingComplete(data);
+                });
+
+                this.socket.on('processing_error', (data) => {
+                    this.handleProcessingError(data);
+                });
+            }
+
+            showNotification(message, type = 'info', duration = 5000) {
+                // Clear existing notification
+                const existing = document.querySelector('.notification');
+                if (existing) {
+                    existing.remove();
+                }
+
+                const notification = document.createElement('div');
+                notification.className = `notification ${type} fade-in`;
+                notification.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <i class="fas ${type === 'success' ? 'fa-check-circle' : 
+                                      type === 'error' ? 'fa-exclamation-circle' : 
+                                      type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle'}"></i>
+                        <span>${message}</span>
+                    </div>
+                `;
+
+                document.body.appendChild(notification);
+
+                // Auto remove after duration
+                if (this.notificationTimeout) {
+                    clearTimeout(this.notificationTimeout);
+                }
+                
+                this.notificationTimeout = setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, duration);
+            }
+
+            debounce(fn, delay) {
+                let timeoutId;
+                return (...args) => {
+                    clearTimeout(timeoutId);
+                    timeoutId = setTimeout(() => fn.apply(this, args), delay);
+                };
+            }
+
+            bindEvents() {
+                this.elements.themeToggle.addEventListener('click', () => {
+                    this.toggleTheme();
+                });
+
+                this.elements.loginForm.addEventListener('submit', (e) => {
+                    this.handleLogin(e);
+                });
+
+                this.elements.logoutBtn.addEventListener('click', () => {
+                    this.handleLogout();
+                });
+
+                this.elements.fileInput.addEventListener('change', this.debounce((e) => {
+                    this.handleFileSelect(e);
+                }, 300));
+
+                this.elements.uploadBtn.addEventListener('click', () => {
+                    this.handleUpload();
+                });
+
+                this.elements.fileUpload.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    this.elements.fileUpload.classList.add('dragover');
+                });
+
+                this.elements.fileUpload.addEventListener('dragleave', () => {
+                    this.elements.fileUpload.classList.remove('dragover');
+                });
+
+                this.elements.fileUpload.addEventListener('drop', this.debounce((e) => {
+                    e.preventDefault();
+                    this.elements.fileUpload.classList.remove('dragover');
+                    this.handleFileDrop(e);
+                }, 300));
+
+                this.elements.refreshFilesBtn.addEventListener('click', () => {
+                    this.loadFiles();
+                });
+
+                this.elements.downloadAllBtn.addEventListener('click', () => {
+                    this.downloadAllFiles();
+                });
+
+                this.elements.updateCredsBtn.addEventListener('click', () => {
+                    this.updateCredentials();
+                });
+
+                this.elements.clearLogsBtn.addEventListener('click', () => {
+                    this.clearLogs();
+                });
+
+                // Bind delete events after rendering files
+                this.elements.filesList.addEventListener('click', (e) => {
+                    if (e.target.closest('.delete-btn')) {
+                        const fileName = e.target.closest('.delete-btn').dataset.fileName;
+                        this.deleteFile(fileName);
+                    }
+                });
+
+                // Prevent accidental page closure during processing
+                window.addEventListener('beforeunload', (e) => {
+                    if (this.isProcessing) {
+                        e.preventDefault();
+                        e.returnValue = 'Processing is in progress. Are you sure you want to leave?';
+                        return e.returnValue;
+                    }
+                });
+            }
+
+            toggleTheme() {
+                const currentTheme = document.documentElement.getAttribute('data-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                
+                document.documentElement.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                this.updateThemeButton(newTheme);
+            }
+
+            async checkAuthStatus() {
+                try {
+                    const response = await fetch('/status');
+                    if (response.ok) {
+                        this.isLoggedIn = true;
+                        this.hideLoginModal();
+                        this.loadFiles();
+                    } else {
+                        this.showLoginModal();
+                    }
+                } catch (error) {
+                    this.showLoginModal();
+                }
+            }
+
+            showLoginModal() {
+                this.elements.loginModal.classList.remove('hidden');
+            }
+
+            hideLoginModal() {
+                this.elements.loginModal.classList.add('hidden');
+                this.elements.userInfo.classList.remove('hidden');
+            }
+
+            async handleLogin(e) {
+                e.preventDefault();
+                
+                const username = this.elements.loginUsername.value;
+                const password = this.elements.loginPassword.value;
+
+                if (!username || !password) {
+                    this.showNotification('Please enter both username and password', 'error');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username, password }),
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        this.isLoggedIn = true;
+                        this.elements.currentUser.textContent = data.username;
+                        this.hideLoginModal();
+                        this.addLog(`Logged in as ${data.username}`, 'success');
+                        this.showNotification('Login successful', 'success');
+                        this.loadFiles();
+                    } else {
+                        this.addLog(`Login failed: ${data.error}`, 'error');
+                        this.showNotification(`Login failed: ${data.error}`, 'error');
+                    }
+                } catch (error) {
+                    this.addLog(`Login error: ${error.message}`, 'error');
+                    this.showNotification(`Login error: ${error.message}`, 'error');
+                }
+            }
+
+            async handleLogout() {
+                try {
+                    await fetch('/logout', { method: 'POST' });
+                    this.isLoggedIn = false;
+                    this.elements.userInfo.classList.add('hidden');
+                    this.showLoginModal();
+                    this.addLog('Logged out successfully', 'info');
+                    this.showNotification('Logged out successfully', 'info');
+                } catch (error) {
+                    this.addLog(`Logout error: ${error.message}`, 'error');
+                    this.showNotification(`Logout error: ${error.message}`, 'error');
+                }
+            }
+
+            handleFileSelect(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    this.validateAndPrepareFile(file);
+                }
+            }
+
+            handleFileDrop(e) {
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    this.validateAndPrepareFile(files[0]);
+                }
+            }
+
+            validateAndPrepareFile(file) {
+                // Reset previous state
+                this.resetUploadState();
+
+                // Validate file
+                if (!file.name.match(/\.(xlsx|xls)$/i)) {
+                    this.addLog('Please select an Excel file (.xlsx or .xls)', 'error');
+                    this.showNotification('Please select an Excel file (.xlsx or .xls)', 'error');
+                    return;
+                }
+
+                if (file.size > 50 * 1024 * 1024) {
+                    this.addLog('File size must be less than 50MB', 'error');
+                    this.showNotification('File size must be less than 50MB', 'error');
+                    return;
+                }
+
+                // Store file and update UI
+                this.selectedFile = file;
+                this.elements.uploadStatus.classList.remove('hidden');
+                this.elements.uploadBtn.disabled = false;
+                this.addLog(`File selected: ${file.name} (${this.formatFileSize(file.size)})`, 'success');
+                this.showNotification(`File selected: ${file.name}`, 'success');
+            }
+
+            async handleUpload() {
+                if (!this.selectedFile) {
+                    this.addLog('No file selected', 'error');
+                    this.showNotification('No file selected', 'error');
+                    return;
+                }
+
+                if (!this.isLoggedIn) {
+                    this.addLog('Please log in first', 'error');
+                    this.showNotification('Please log in first', 'error');
+                    this.showLoginModal();
+                    return;
+                }
+
+                if (this.isProcessing) {
+                    this.addLog('Processing in progress, please wait', 'warning');
+                    this.showNotification('Processing already in progress, please wait', 'warning');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('file', this.selectedFile);
+
+                try {
+                    this.isProcessing = true;
+                    this.elements.uploadBtn.disabled = true;
+                    this.elements.progressContainer.classList.remove('hidden');
+                    this.elements.processingIndicator.classList.remove('hidden');
+                    this.updateProcessingStatus('Starting...');
+                    this.updateConnectionStatus('processing');
+                    this.addLog('Initiating file upload and processing', 'info');
+                    this.showNotification('Starting device processing...', 'info');
+
+                    const response = await fetch('/upload', {
+                        method: 'POST',
+                        body: formData,
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        this.addLog(data.message || 'File uploaded successfully', 'success');
+                        this.updateProcessingStatus('Processing...');
+                        this.showNotification('Processing started successfully', 'success');
+                    } else {
+                        this.addLog(`Upload failed: ${data.error || 'Unknown error'}`, 'error');
+                        this.showNotification(`Upload failed: ${data.error || 'Unknown error'}`, 'error');
+                        this.resetUploadState();
+                    }
+                } catch (error) {
+                    this.addLog(`Upload error: ${error.message}`, 'error');
+                    this.showNotification(`Upload error: ${error.message}`, 'error');
+                    this.resetUploadState();
+                }
+            }
+
+            updateProgress(progress, message) {
+                if (progress !== undefined) {
+                    this.elements.progressFill.style.width = `${progress}%`;
+                    this.elements.progressText.textContent = `${Math.round(progress)}% complete`;
+                }
+                
+                if (message) {
+                    this.elements.processingStatus.textContent = message;
+                }
+            }
+
+            updateProcessingStatus(status) {
+                this.elements.processingStatus.textContent = status;
+            }
+
+            handleProcessingComplete(data) {
+                this.isProcessing = false;
+                this.updateProgress(100, 'Complete');
+                this.updateProcessingStatus('Completed');
+                this.updateConnectionStatus('online');
+                this.elements.processingIndicator.classList.add('hidden');
+                
+                if (data.results) {
+                    this.elements.validPaidCount.textContent = data.results.valid_paid || 0;
+                    this.elements.validNotPaidCount.textContent = data.results.valid_not_paid || 0;
+                    this.elements.expiredCount.textContent = data.results.expired || 0;
+                    this.elements.noCertCount.textContent = data.results.no_cert || 0;
+                    this.elements.notFoundCount.textContent = data.results.not_found || 0;
+                    this.elements.resultsStats.classList.remove('hidden');
+                }
+
+                this.addLog(data.message || 'Processing completed', 'success');
+                this.showNotification('Processing completed successfully!', 'success', 8000);
+                this.loadFiles();
+                this.resetUploadState();
+            }
+
+            handleProcessingError(data) {
+                this.isProcessing = false;
+                this.updateProcessingStatus('Error');
+                this.updateConnectionStatus('offline');
+                this.elements.processingIndicator.classList.add('hidden');
+                this.addLog(`Processing error: ${data.error || 'Unknown error'}`, 'error');
+                this.showNotification(`Processing error: ${data.error || 'Unknown error'}`, 'error', 10000);
+                this.resetUploadState();
+            }
+
+            resetUploadState() {
+                if (!this.selectedFile) {
+                    this.elements.uploadStatus.classList.add('hidden');
+                }
+                this.elements.uploadBtn.disabled = true;
+                this.elements.progressContainer.classList.add('hidden');
+                this.elements.processingIndicator.classList.add('hidden');
+                this.elements.fileInput.value = '';
+                this.selectedFile = null;
+                this.isProcessing = false;
+            }
+
+            updateConnectionStatus(status) {
+                const statusEl = this.elements.connectionStatus;
+                const icon = statusEl.querySelector('i');
+                const text = statusEl.querySelector('span');
+
+                statusEl.className = 'status-indicator';
+                icon.classList.remove('pulse');
+                
+                switch (status) {
+                    case 'online':
+                        statusEl.classList.add('status-online');
+                        text.textContent = 'Connected';
+                        break;
+                    case 'processing':
+                        statusEl.classList.add('status-processing');
+                        text.textContent = 'Processing';
+                        icon.classList.add('pulse');
+                        break;
+                    case 'offline':
+                        statusEl.classList.add('status-offline');
+                        text.textContent = 'Disconnected';
+                        break;
+                }
+            }
+
+            addLog(message, type = 'info') {
+                const timestamp = new Date().toLocaleTimeString();
+                const logEntry = { message, type, timestamp };
+                
+                this.logs.unshift(logEntry);
+                if (this.logs.length > 100) {
+                    this.logs.pop();
+                }
+
+                this.renderLogs();
+            }
+
+            renderLogs() {
+                if (this.logs.length === 0) {
+                    this.elements.logsContainer.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">
+                                <i class="fas fa-terminal"></i>
+                            </div>
+                            <p>Logs will appear here</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                this.elements.logsContainer.innerHTML = this.logs.map(log => `
+                    <div class="log-card ${log.type} fade-in">
+                        <div class="log-timestamp">${log.timestamp}</div>
+                        <div class="log-message">${log.message}</div>
+                    </div>
+                `).join('');
+            }
+
+            clearLogs() {
+                this.logs = [];
+                this.renderLogs();
+                this.showNotification('Logs cleared', 'info');
+            }
+
+            async loadFiles() {
+                try {
+                    const response = await fetch('/files');
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.renderFiles(data.files);
+                    } else {
+                        this.addLog('Failed to load files', 'error');
+                        this.showNotification('Failed to load files', 'error');
+                    }
+                } catch (error) {
+                    this.addLog(`Error loading files: ${error.message}`, 'error');
+                    this.showNotification(`Error loading files: ${error.message}`, 'error');
+                }
+            }
+
+            renderFiles(files) {
+                if (!files || files.length === 0) {
+                    this.elements.filesList.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-state-icon">
+                                <i class="fas fa-folder-open"></i>
+                            </div>
+                            <h3>No files yet</h3>
+                            <p>Upload and process an Excel file to see results here</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const fileGrid = files.map(file => `
+                    <div class="file-item fade-in">
+                        <div class="file-icon">
+                            <i class="fas ${this.getFileIcon(file.name)}"></i>
+                        </div>
+                        <div class="file-name">${file.name}</div>
+                        <div class="file-meta">
+                            <span>${this.formatFileSize(file.size)}</span>
+                            <span>${new Date(file.modified).toLocaleDateString()}</span>
+                        </div>
+                        <div class="file-actions">
+                            <a href="${file.download_url}" class="btn btn-primary" download>
+                                <i class="fas fa-download"></i>
+                                Download
+                            </a>
+                            <button class="btn btn-danger delete-btn" data-file-name="${file.name}">
+                                <i class="fas fa-trash"></i>
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+
+                this.elements.filesList.innerHTML = `<div class="file-grid">${fileGrid}</div>`;
+            }
+
+            async deleteFile(fileName) {
+                if (!confirm(`Are you sure you want to delete ${fileName}?`)) {
+                    return;
+                }
+
+                try {
+                    this.addLog(`Initiating deletion of ${fileName}`, 'info');
+                    const response = await fetch('/delete-file', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ fileName }),
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        this.addLog(`File ${fileName} deleted successfully`, 'success');
+                        this.showNotification(`File ${fileName} deleted successfully`, 'success');
+                        this.loadFiles(); // Refresh the file list
+                    } else {
+                        this.addLog(`Failed to delete file: ${data.error || 'Unknown error'}`, 'error');
+                        this.showNotification(`Failed to delete file: ${data.error || 'Unknown error'}`, 'error');
+                    }
+                } catch (error) {
+                    this.addLog(`Error deleting file: ${error.message}`, 'error');
+                    this.showNotification(`Error deleting file: ${error.message}`, 'error');
+                }
+            }
+
+            getFileIcon(filename) {
+                const ext = filename.split('.').pop().toLowerCase();
+                switch (ext) {
+                    case 'xlsx':
+                    case 'xls':
+                        return 'fa-file-excel';
+                    case 'log':
+                        return 'fa-file-alt';
+                    case 'zip':
+                        return 'fa-file-archive';
+                    default:
+                        return 'fa-file';
+                }
+            }
+
+            formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            async downloadAllFiles() {
+                try {
+                    const response = await fetch('/download-all');
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'erp_data_export.zip';
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        this.addLog('All files downloaded successfully', 'success');
+                        this.showNotification('All files downloaded successfully', 'success');
+                    } else {
+                        this.addLog('Failed to download files', 'error');
+                        this.showNotification('Failed to download files', 'error');
+                    }
+                } catch (error) {
+                    this.addLog(`Download error: ${error.message}`, 'error');
+                    this.showNotification(`Download error: ${error.message}`, 'error');
+                }
+            }
+
+            async loadCredentials() {
+                try {
+                    const response = await fetch('/credentials');
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.elements.envUsername.value = data.username || '';
+                    }
+                } catch (error) {
+                    console.log('Could not load credentials');
+                }
+            }
+
+            async updateCredentials() {
+                const username = this.elements.envUsername.value;
+                const password = this.elements.envPassword.value;
+
+                if (!username || !password) {
+                    this.addLog('Please enter both username and password', 'error');
+                    this.showNotification('Please enter both username and password', 'error');
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/update-credentials', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ username, password }),
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        this.addLog('Credentials updated successfully', 'success');
+                        this.showNotification('Credentials updated successfully', 'success');
+                        this.elements.envPassword.value = '';
+                    } else {
+                        this.addLog(`Failed to update credentials: ${data.error}`, 'error');
+                        this.showNotification(`Failed to update credentials: ${data.error}`, 'error');
+                    }
+                } catch (error) {
+                    this.addLog(`Error updating credentials: ${error.message}`, 'error');
+                    this.showNotification(`Error updating credentials: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            new ERPApp();
+        });
+    </script>
+</body>
+</html>
